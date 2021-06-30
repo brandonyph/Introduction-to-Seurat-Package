@@ -277,26 +277,26 @@ pbmc <- RunUMAP(pbmc, dims = 1:10)
     ## To use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'
     ## This message will be shown once per session
 
-    ## 09:40:33 UMAP embedding parameters a = 0.9922 b = 1.112
+    ## 09:54:12 UMAP embedding parameters a = 0.9922 b = 1.112
 
-    ## 09:40:33 Read 2700 rows and found 10 numeric columns
+    ## 09:54:12 Read 2700 rows and found 10 numeric columns
 
-    ## 09:40:33 Using Annoy for neighbor search, n_neighbors = 30
+    ## 09:54:12 Using Annoy for neighbor search, n_neighbors = 30
 
-    ## 09:40:33 Building Annoy index with metric = cosine, n_trees = 50
+    ## 09:54:12 Building Annoy index with metric = cosine, n_trees = 50
 
     ## 0%   10   20   30   40   50   60   70   80   90   100%
 
     ## [----|----|----|----|----|----|----|----|----|----|
 
     ## **************************************************|
-    ## 09:40:33 Writing NN index file to temp file C:\Users\harpa\AppData\Local\Temp\Rtmp8EZ25O\file21ac4b07688d
-    ## 09:40:33 Searching Annoy index using 1 thread, search_k = 3000
-    ## 09:40:34 Annoy recall = 100%
-    ## 09:40:34 Commencing smooth kNN distance calibration using 1 thread
-    ## 09:40:35 Initializing from normalized Laplacian + noise
-    ## 09:40:35 Commencing optimization for 500 epochs, with 107868 positive edges
-    ## 09:40:44 Optimization finished
+    ## 09:54:13 Writing NN index file to temp file C:\Users\harpa\AppData\Local\Temp\RtmpoJsBmG\file2fb877d171ce
+    ## 09:54:13 Searching Annoy index using 1 thread, search_k = 3000
+    ## 09:54:14 Annoy recall = 100%
+    ## 09:54:14 Commencing smooth kNN distance calibration using 1 thread
+    ## 09:54:15 Initializing from normalized Laplacian + noise
+    ## 09:54:15 Commencing optimization for 500 epochs, with 107868 positive edges
+    ## 09:54:23 Optimization finished
 
 ``` r
 DimPlot(pbmc, reduction = "umap")
@@ -405,6 +405,7 @@ p <- lapply(X = p, FUN = function(x) x +
                                         theme(axis.title.y = element_text(size = 5)) +
                                         theme(axis.title.x = element_text(size = 5)) +
                                         theme(axis.text.y = element_text(size = 5)) +
+                                        theme(axis.text.x = element_text(size = 5)) +
                                         theme(legend.position = "none")  )
 
 CombinePlots(plots = p)
