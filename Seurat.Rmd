@@ -1,5 +1,5 @@
 ---
-title: "Seurat- Guided Clustering"
+title: "Seurat-Guided Clustering"
 author: "Brandon Yeo_LiquidBrain"
 date: "6/26/2021"
 output:
@@ -7,16 +7,18 @@ output:
     variant: gfm
 ---
 
+Original Guide: https://satijalab.org/seurat/articles/pbmc3k_tutorial.html
 
 ```{r}
 library(dplyr)
 library(Seurat)
 library(patchwork)
+library(ggplot2)
 ```
 
-# Download the rawdata here: 
-https://s3-us-west-2.amazonaws.com/10x.files/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.
-```
+# Download the rawdata here
+https://s3-us-west-2.amazonaws.com/10x.files/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices
+
 ```{r}
 # Load the PBMC dataset
 pbmc.data <- Read10X(data.dir = "./pbmc3k_filtered_gene_bc_matrices/filtered_gene_bc_matrices/hg19")
@@ -45,12 +47,13 @@ plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plot1 + plot2
 ```
-
+VST function calculates a variance stabilizing transformation (VST) from the fitted dispersion-mean relation(s) and then transforms the count data (normalized by division by the size factors or normalization factors), yielding a matrix of values which are now approximately homoskedastic (having constant variance along the range of mean values). The transformation also normalizes with respect to library size. The rlog is less sensitive to size factors, which can be an issue when size factors vary widely. These transformations are useful when checking for outliers or as input for machine learning techniques such as clustering or linear discriminant analysis.
 
 ```{r}
-pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize")
 
 pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+#https://rdrr.io/bioc/DESeq2/man/varianceStabilizingTransformation.html
 ```
 
 
@@ -65,7 +68,10 @@ top10
 # plot variable features with and without labels
 plot1 <- VariableFeaturePlot(pbmc)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-plot1 + plot2
+
+plot1
+
+plot2
 ```
 
 
@@ -79,12 +85,12 @@ pbmc <- ScaleData(pbmc, features = all.genes)
 pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 
 # Examine and visualize PCA results a few different ways
-print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+print(pbmc[["pca"]], dims = 1:2, nfeatures = 5)
 ```
 
 
 ```{r}
-VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+VizDimLoadings(pbmc, dims = 1:2, nfeatures = 15, reduction = "pca")
 ```
 
 
@@ -93,7 +99,9 @@ DimPlot(pbmc, reduction = "pca")
 
 DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
 ```
+https://www.rdocumentation.org/packages/jackstraw/versions/1.3/topics/jackstraw
 
+Test for association between the observed data and their systematic patterns of variations. Systematic patterns may be captured by latent variables using principal component analysis (PCA), factor analysis (FA), and related methods. The jackstraw enables statistical testing for association between observed variables and latent variables, as captured by PCs or other estimates. 
 
 ```{r}
 # NOTE: This process can take a long time for big datasets, comment out for expediency. More
@@ -110,14 +118,18 @@ JackStrawPlot(pbmc, dims = 1:15)
 ElbowPlot(pbmc)
 ```
 
+We chose 10 here, but encourage users to consider the following:
+
+Dendritic cell and NK aficionados may recognize that genes strongly associated with PCs 12 and 13 define rare immune subsets (i.e. MZB1 is a marker for plasmacytoid DCs). However, these groups are so rare, they are difficult to distinguish from background noise for a dataset of this size without prior knowledge
+.
+We encourage users to repeat downstream analyses with a different number of PCs (10, 15, or even 50!). As you will observe, the results often do not differ dramatically.
+
+We advise users to err on the higher side when choosing this parameter. For example, performing downstream analyses with only 5 PCs does significantly and adversely affect results.
 
 ```{r}
 pbmc <- FindNeighbors(pbmc, dims = 1:10)
 pbmc <- FindClusters(pbmc, resolution = 0.5)
-```
 
-
-```{r}
 # Look at cluster IDs of the first 5 cells
 head(Idents(pbmc), 5)
 ```
@@ -125,6 +137,7 @@ head(Idents(pbmc), 5)
 
 ```{r}
 pbmc <- RunUMAP(pbmc, dims = 1:10)
+
 DimPlot(pbmc, reduction = "umap")
 ```
 
@@ -133,8 +146,9 @@ DimPlot(pbmc, reduction = "umap")
 ```{r}
 # find all markers of cluster 1
 cluster1.markers <- FindMarkers(pbmc, ident.1 = 1, min.pct = 0.25)
-
 head(cluster1.markers, n = 5)
+
+VlnPlot(pbmc, features = c(row.names(cluster1.markers)[1], row.names(cluster1.markers)[2]))
 ```
 
 
@@ -142,6 +156,8 @@ head(cluster1.markers, n = 5)
 # find all markers of cluster 2
 cluster2.markers <- FindMarkers(pbmc, ident.1 = 2, min.pct = 0.25)
 head(cluster2.markers, n = 5)
+
+VlnPlot(pbmc, features = c(row.names(cluster2.markers)[1], row.names(cluster2.markers)[2]))
 ```
 
 
@@ -151,6 +167,8 @@ head(cluster2.markers, n = 5)
 # find all markers distinguishing cluster 5 from clusters 0 and 3
 cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
 head(cluster5.markers, n = 5)
+
+VlnPlot(pbmc, features = c(row.names(cluster5.markers)[1], row.names(cluster5.markers)[2]))
 ```
 
 
@@ -161,23 +179,25 @@ pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.thre
 
 
 ```{r}
-pbmc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+x <- pbmc.markers %>% group_by(cluster) %>% top_n(n = 1, wt = avg_log2FC)
+FeaturePlot(pbmc, features = x$gene[1:4])
+FeaturePlot(pbmc, features = x$gene[5:8])
 ```
 
 
-```{r}
-VlnPlot(pbmc, features = c("CD79A", "TCL1A"))
-```
 
 
 ```{r}
-# you can plot raw counts as well
-VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = "counts", log = TRUE)
-```
+p <- FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"), combine = FALSE)
 
+p <- lapply(X = p, FUN = function(x) x + 
+                                        theme(plot.title = element_text(size = 8)) +
+                                        theme(axis.title.y = element_text(size = 5)) +
+                                        theme(axis.title.x = element_text(size = 5)) +
+                                        theme(axis.text.y = element_text(size = 5)) +
+                                        theme(legend.position = "none")  )
 
-```{r}
-FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"))
+CombinePlots(plots = p)
 ```
 
 
@@ -186,7 +206,22 @@ top10 <- pbmc.markers %>%
             group_by(cluster) %>% 
             top_n(n = 10, wt = avg_log2FC)
 
-DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+top10
+```
+
+
+```{r}
+p2 <- DoHeatmap(pbmc, features = top10$gene, group.bar.height = 0.01,size=3,combine = FALSE) 
+
+p2 <- lapply(X = p2, FUN = function(x) x + 
+                                        theme(plot.title = element_text(size = 8)) +
+                                        theme(axis.title.y = element_text(size = 5)) +
+                                        theme(axis.title.x = element_text(size = 5)) +
+                                        theme(axis.text.y = element_text(size = 3)) +
+                                        theme(legend.position = "none")  )
+
+CombinePlots(plots = p2)
+
 ```
 
 
@@ -196,12 +231,19 @@ DoHeatmap(pbmc, features = top10$gene) + NoLegend()
 ```{r}
 new.cluster.ids <- c("Naive CD4 T", "Memory CD4 T", "CD14+ Mono", "B", "CD8 T", "FCGR3A+ Mono", "NK", "DC", "Platelet")
 names(new.cluster.ids) <- levels(pbmc)
+
 pbmc <- RenameIdents(pbmc, new.cluster.ids)
-DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+DimPlot(pbmc, reduction = "pca", label = TRUE, pt.size = 0.5)
+```
+```{r}
+pbmc
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5)
 ```
 
 
-
+```{r}
+sessionInfo()
+```
 
 
 

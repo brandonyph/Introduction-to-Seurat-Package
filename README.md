@@ -1,3 +1,6 @@
+Original Guide:
+<https://satijalab.org/seurat/articles/pbmc3k_tutorial.html>
+
 ``` r
 library(dplyr)
 ```
@@ -21,19 +24,20 @@ library(Seurat)
 
 ``` r
 library(patchwork)
+library(ggplot2)
 ```
 
-# Download the rawdata here:
+# Download the rawdata here
 
-<https://s3-us-west-2.amazonaws.com/10x.files/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices>.
+<https://s3-us-west-2.amazonaws.com/10x.files/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices>
 
+``` r
+# Load the PBMC dataset
+pbmc.data <- Read10X(data.dir = "./pbmc3k_filtered_gene_bc_matrices/filtered_gene_bc_matrices/hg19")
+# Initialize the Seurat object with the raw (non-normalized data).
 
-    ```r
-    # Load the PBMC dataset
-    pbmc.data <- Read10X(data.dir = "./pbmc3k_filtered_gene_bc_matrices/filtered_gene_bc_matrices/hg19")
-    # Initialize the Seurat object with the raw (non-normalized data).
-
-    pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+```
 
     ## Warning: Feature names cannot have underscores ('_'), replacing with dashes
     ## ('-')
@@ -65,12 +69,23 @@ plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA"
 plot1 + plot2
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-4-1.png)<!-- --> VST function
+calculates a variance stabilizing transformation (VST) from the fitted
+dispersion-mean relation(s) and then transforms the count data
+(normalized by division by the size factors or normalization factors),
+yielding a matrix of values which are now approximately homoskedastic
+(having constant variance along the range of mean values). The
+transformation also normalizes with respect to library size. The rlog is
+less sensitive to size factors, which can be an issue when size factors
+vary widely. These transformations are useful when checking for outliers
+or as input for machine learning techniques such as clustering or linear
+discriminant analysis.
 
 ``` r
-pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize")
 
 pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+#https://rdrr.io/bioc/DESeq2/man/varianceStabilizingTransformation.html
 ```
 
 ``` r
@@ -91,10 +106,16 @@ plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
     ## When using repel, set xnudge and ynudge to 0 for optimal results
 
 ``` r
-plot1 + plot2
+plot1
 ```
 
 ![](Seurat_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+``` r
+plot2
+```
+
+![](Seurat_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
 ``` r
 all.genes <- rownames(pbmc)
@@ -145,7 +166,7 @@ pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 
 ``` r
 # Examine and visualize PCA results a few different ways
-print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+print(pbmc[["pca"]], dims = 1:2, nfeatures = 5)
 ```
 
     ## PC_ 1 
@@ -153,19 +174,10 @@ print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
     ## Negative:  CST3, TYROBP, LST1, AIF1, FTL 
     ## PC_ 2 
     ## Positive:  CD79A, MS4A1, TCL1A, HLA-DQA1, HLA-DRA 
-    ## Negative:  NKG7, PRF1, CST7, GZMA, GZMB 
-    ## PC_ 3 
-    ## Positive:  HLA-DQA1, CD79A, CD79B, HLA-DQB1, HLA-DPB1 
-    ## Negative:  PPBP, PF4, SDPR, SPARC, GNG11 
-    ## PC_ 4 
-    ## Positive:  HLA-DQA1, CD79A, CD79B, HIST1H2AC, HLA-DQB1 
-    ## Negative:  VIM, S100A8, S100A6, S100A4, S100A9 
-    ## PC_ 5 
-    ## Positive:  GZMB, FGFBP2, NKG7, GNLY, PRF1 
-    ## Negative:  LTB, VIM, AQP3, PPA1, MAL
+    ## Negative:  NKG7, PRF1, CST7, GZMA, GZMB
 
 ``` r
-VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+VizDimLoadings(pbmc, dims = 1:2, nfeatures = 15, reduction = "pca")
 ```
 
 ![](Seurat_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
@@ -181,6 +193,14 @@ DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
 ```
 
 ![](Seurat_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
+<https://www.rdocumentation.org/packages/jackstraw/versions/1.3/topics/jackstraw>
+
+Test for association between the observed data and their systematic
+patterns of variations. Systematic patterns may be captured by latent
+variables using principal component analysis (PCA), factor analysis
+(FA), and related methods. The jackstraw enables statistical testing for
+association between observed variables and latent variables, as captured
+by PCs or other estimates.
 
 ``` r
 # NOTE: This process can take a long time for big datasets, comment out for expediency. More
@@ -201,6 +221,20 @@ ElbowPlot(pbmc)
 ```
 
 ![](Seurat_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+We chose 10 here, but encourage users to consider the following:
+
+Dendritic cell and NK aficionados may recognize that genes strongly
+associated with PCs 12 and 13 define rare immune subsets (i.e. MZB1 is a
+marker for plasmacytoid DCs). However, these groups are so rare, they
+are difficult to distinguish from background noise for a dataset of this
+size without prior knowledge . We encourage users to repeat downstream
+analyses with a different number of PCs (10, 15, or even 50!). As you
+will observe, the results often do not differ dramatically.
+
+We advise users to err on the higher side when choosing this parameter.
+For example, performing downstream analyses with only 5 PCs does
+significantly and adversely affect results.
 
 ``` r
 pbmc <- FindNeighbors(pbmc, dims = 1:10)
@@ -243,37 +277,36 @@ pbmc <- RunUMAP(pbmc, dims = 1:10)
     ## To use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'
     ## This message will be shown once per session
 
-    ## 20:24:27 UMAP embedding parameters a = 0.9922 b = 1.112
+    ## 09:40:33 UMAP embedding parameters a = 0.9922 b = 1.112
 
-    ## 20:24:27 Read 2700 rows and found 10 numeric columns
+    ## 09:40:33 Read 2700 rows and found 10 numeric columns
 
-    ## 20:24:27 Using Annoy for neighbor search, n_neighbors = 30
+    ## 09:40:33 Using Annoy for neighbor search, n_neighbors = 30
 
-    ## 20:24:27 Building Annoy index with metric = cosine, n_trees = 50
+    ## 09:40:33 Building Annoy index with metric = cosine, n_trees = 50
 
     ## 0%   10   20   30   40   50   60   70   80   90   100%
 
     ## [----|----|----|----|----|----|----|----|----|----|
 
     ## **************************************************|
-    ## 20:24:28 Writing NN index file to temp file C:\Users\harpa\AppData\Local\Temp\Rtmp6XXANB\filea5c3a8870f5
-    ## 20:24:28 Searching Annoy index using 1 thread, search_k = 3000
-    ## 20:24:29 Annoy recall = 100%
-    ## 20:24:29 Commencing smooth kNN distance calibration using 1 thread
-    ## 20:24:30 Initializing from normalized Laplacian + noise
-    ## 20:24:30 Commencing optimization for 500 epochs, with 107868 positive edges
-    ## 20:24:40 Optimization finished
+    ## 09:40:33 Writing NN index file to temp file C:\Users\harpa\AppData\Local\Temp\Rtmp8EZ25O\file21ac4b07688d
+    ## 09:40:33 Searching Annoy index using 1 thread, search_k = 3000
+    ## 09:40:34 Annoy recall = 100%
+    ## 09:40:34 Commencing smooth kNN distance calibration using 1 thread
+    ## 09:40:35 Initializing from normalized Laplacian + noise
+    ## 09:40:35 Commencing optimization for 500 epochs, with 107868 positive edges
+    ## 09:40:44 Optimization finished
 
 ``` r
 DimPlot(pbmc, reduction = "umap")
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
 
 ``` r
 # find all markers of cluster 1
 cluster1.markers <- FindMarkers(pbmc, ident.1 = 1, min.pct = 0.25)
-
 head(cluster1.markers, n = 5)
 ```
 
@@ -283,6 +316,12 @@ head(cluster1.markers, n = 5)
     ## FCN1    0.000000e+00   3.432922 0.953 0.147  0.000000e+00
     ## LGALS2  0.000000e+00   3.717131 0.900 0.059  0.000000e+00
     ## CD14   4.401366e-294   2.805663 0.660 0.029 6.036033e-290
+
+``` r
+VlnPlot(pbmc, features = c(row.names(cluster1.markers)[1], row.names(cluster1.markers)[2]))
+```
+
+![](Seurat_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 # find all markers of cluster 2
@@ -298,6 +337,12 @@ head(cluster2.markers, n = 5)
     ## IL7R 5.971448e-58   1.098859 0.732 0.333 8.189244e-54
 
 ``` r
+VlnPlot(pbmc, features = c(row.names(cluster2.markers)[1], row.names(cluster2.markers)[2]))
+```
+
+![](Seurat_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+``` r
 # find all markers distinguishing cluster 5 from clusters 0 and 3
 cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
 head(cluster5.markers, n = 5)
@@ -309,6 +354,12 @@ head(cluster5.markers, n = 5)
     ## IFITM3        4.090907e-199   3.886400 0.975 0.045 5.610270e-195
     ## RP11-290F20.3 1.025050e-189   2.741460 0.849 0.017 1.405753e-185
     ## CD68          4.386481e-188   2.998564 0.906 0.033 6.015620e-184
+
+``` r
+VlnPlot(pbmc, features = c(row.names(cluster5.markers)[1], row.names(cluster5.markers)[2]))
+```
+
+![](Seurat_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
 # find markers for every cluster compared to all remaining cells, report only the positive ones
@@ -334,72 +385,166 @@ pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.thre
     ## Calculating cluster 8
 
 ``` r
-pbmc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+x <- pbmc.markers %>% group_by(cluster) %>% top_n(n = 1, wt = avg_log2FC)
+FeaturePlot(pbmc, features = x$gene[1:4])
 ```
 
-    ## Registered S3 method overwritten by 'cli':
-    ##   method     from         
-    ##   print.boxx spatstat.geom
-
-    ## # A tibble: 18 x 7
-    ## # Groups:   cluster [9]
-    ##        p_val avg_log2FC pct.1 pct.2 p_val_adj cluster gene     
-    ##        <dbl>      <dbl> <dbl> <dbl>     <dbl> <fct>   <chr>    
-    ##  1 1.10e- 81       1.33 0.432 0.111 1.51e- 77 0       CCR7     
-    ##  2 2.53e- 48       1.08 0.336 0.108 3.46e- 44 0       PRKCQ-AS1
-    ##  3 0               5.50 0.994 0.215 0         1       S100A9   
-    ##  4 0               5.47 0.967 0.121 0         1       S100A8   
-    ##  5 1.61e- 82       1.18 0.983 0.642 2.21e- 78 2       LTB      
-    ##  6 4.78e- 57       1.22 0.42  0.113 6.56e- 53 2       AQP3     
-    ##  7 0               4.29 0.934 0.043 0         3       CD79A    
-    ##  8 8.49e-274       3.58 0.619 0.022 1.16e-269 3       TCL1A    
-    ##  9 1.52e-211       3.06 0.95  0.229 2.08e-207 4       CCL5     
-    ## 10 4.29e-201       3.20 0.599 0.049 5.88e-197 4       GZMK     
-    ## 11 5.51e-184       3.34 0.975 0.135 7.56e-180 5       FCGR3A   
-    ## 12 3.17e-124       3.01 1     0.315 4.35e-120 5       LST1     
-    ## 13 1.09e-259       4.81 0.966 0.072 1.49e-255 6       GZMB     
-    ## 14 1.51e-170       4.82 0.939 0.135 2.07e-166 6       GNLY     
-    ## 15 1.43e-267       3.87 0.833 0.009 1.96e-263 7       FCER1A   
-    ## 16 3.90e- 33       2.91 0.944 0.207 5.34e- 29 7       HLA-DQA1 
-    ## 17 6.19e-182       7.13 0.933 0.011 8.49e-178 8       PF4      
-    ## 18 4.24e-116       8.47 1     0.024 5.81e-112 8       PPBP
+![](Seurat_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
-VlnPlot(pbmc, features = c("CD79A", "TCL1A"))
+FeaturePlot(pbmc, features = x$gene[5:8])
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
 
 ``` r
-# you can plot raw counts as well
-VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = "counts", log = TRUE)
+p <- FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"), combine = FALSE)
+
+p <- lapply(X = p, FUN = function(x) x + 
+                                        theme(plot.title = element_text(size = 8)) +
+                                        theme(axis.title.y = element_text(size = 5)) +
+                                        theme(axis.title.x = element_text(size = 5)) +
+                                        theme(axis.text.y = element_text(size = 5)) +
+                                        theme(legend.position = "none")  )
+
+CombinePlots(plots = p)
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+    ## Warning: CombinePlots is being deprecated. Plots should now be combined using
+    ## the patchwork system.
 
-``` r
-FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"))
-```
-
-![](Seurat_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 ``` r
 top10 <- pbmc.markers %>% 
             group_by(cluster) %>% 
             top_n(n = 10, wt = avg_log2FC)
 
-DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+top10
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+    ## Registered S3 method overwritten by 'cli':
+    ##   method     from         
+    ##   print.boxx spatstat.geom
+
+    ## # A tibble: 90 x 7
+    ## # Groups:   cluster [9]
+    ##        p_val avg_log2FC pct.1 pct.2 p_val_adj cluster gene     
+    ##        <dbl>      <dbl> <dbl> <dbl>     <dbl> <fct>   <chr>    
+    ##  1 3.04e-104      0.999 0.895 0.592 4.16e-100 0       LDHB     
+    ##  2 1.10e- 81      1.33  0.432 0.111 1.51e- 77 0       CCR7     
+    ##  3 4.20e- 79      0.965 0.848 0.407 5.75e- 75 0       CD3D     
+    ##  4 5.53e- 49      0.815 0.71  0.402 7.59e- 45 0       CD3E     
+    ##  5 2.53e- 48      1.08  0.336 0.108 3.46e- 44 0       PRKCQ-AS1
+    ##  6 1.40e- 47      0.958 0.625 0.358 1.91e- 43 0       NOSIP    
+    ##  7 3.99e- 41      0.974 0.316 0.109 5.47e- 37 0       LEF1     
+    ##  8 6.44e- 41      0.786 0.611 0.329 8.83e- 37 0       IL7R     
+    ##  9 5.75e- 37      0.852 0.42  0.188 7.89e- 33 0       PIK3IP1  
+    ## 10 3.67e- 32      0.908 0.259 0.087 5.03e- 28 0       MAL      
+    ## # ... with 80 more rows
+
+``` r
+p2 <- DoHeatmap(pbmc, features = top10$gene, group.bar.height = 0.01,size=3,combine = FALSE) 
+
+p2 <- lapply(X = p2, FUN = function(x) x + 
+                                        theme(plot.title = element_text(size = 8)) +
+                                        theme(axis.title.y = element_text(size = 5)) +
+                                        theme(axis.title.x = element_text(size = 5)) +
+                                        theme(axis.text.y = element_text(size = 3)) +
+                                        theme(legend.position = "none")  )
+
+CombinePlots(plots = p2)
+```
+
+    ## Warning: CombinePlots is being deprecated. Plots should now be combined using
+    ## the patchwork system.
+
+![](Seurat_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 # Assigning cell type identity to clusters
 
 ``` r
 new.cluster.ids <- c("Naive CD4 T", "Memory CD4 T", "CD14+ Mono", "B", "CD8 T", "FCGR3A+ Mono", "NK", "DC", "Platelet")
 names(new.cluster.ids) <- levels(pbmc)
+
 pbmc <- RenameIdents(pbmc, new.cluster.ids)
-DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+DimPlot(pbmc, reduction = "pca", label = TRUE, pt.size = 0.5)
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+``` r
+pbmc
+```
+
+    ## An object of class Seurat 
+    ## 13714 features across 2700 samples within 1 assay 
+    ## Active assay: RNA (13714 features, 2000 variable features)
+    ##  2 dimensional reductions calculated: pca, umap
+
+``` r
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5)
+```
+
+![](Seurat_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+
+``` r
+sessionInfo()
+```
+
+    ## R version 4.1.0 (2021-05-18)
+    ## Platform: x86_64-w64-mingw32/x64 (64-bit)
+    ## Running under: Windows 10 x64 (build 19043)
+    ## 
+    ## Matrix products: default
+    ## 
+    ## locale:
+    ## [1] LC_COLLATE=English_Malaysia.1252  LC_CTYPE=English_Malaysia.1252   
+    ## [3] LC_MONETARY=English_Malaysia.1252 LC_NUMERIC=C                     
+    ## [5] LC_TIME=English_Malaysia.1252    
+    ## 
+    ## attached base packages:
+    ## [1] stats     graphics  grDevices utils     datasets  methods   base     
+    ## 
+    ## other attached packages:
+    ## [1] ggplot2_3.3.5      patchwork_1.1.1    SeuratObject_4.0.2 Seurat_4.0.3      
+    ## [5] dplyr_1.0.7       
+    ## 
+    ## loaded via a namespace (and not attached):
+    ##   [1] Rtsne_0.15            colorspace_2.0-1      deldir_0.2-10        
+    ##   [4] ellipsis_0.3.2        ggridges_0.5.3        rstudioapi_0.13      
+    ##   [7] spatstat.data_2.1-0   leiden_0.3.8          listenv_0.8.0        
+    ##  [10] farver_2.1.0          ggrepel_0.9.1         RSpectra_0.16-0      
+    ##  [13] fansi_0.5.0           codetools_0.2-18      splines_4.1.0        
+    ##  [16] knitr_1.33            polyclip_1.10-0       jsonlite_1.7.2       
+    ##  [19] ica_1.0-2             cluster_2.1.2         png_0.1-7            
+    ##  [22] uwot_0.1.10           shiny_1.6.0           sctransform_0.3.2    
+    ##  [25] spatstat.sparse_2.0-0 compiler_4.1.0        httr_1.4.2           
+    ##  [28] assertthat_0.2.1      Matrix_1.3-3          fastmap_1.1.0        
+    ##  [31] lazyeval_0.2.2        limma_3.48.1          cli_2.5.0            
+    ##  [34] later_1.2.0           htmltools_0.5.1.1     tools_4.1.0          
+    ##  [37] igraph_1.2.6          gtable_0.3.0          glue_1.4.2           
+    ##  [40] RANN_2.6.1            reshape2_1.4.4        Rcpp_1.0.6           
+    ##  [43] scattermore_0.7       vctrs_0.3.8           nlme_3.1-152         
+    ##  [46] lmtest_0.9-38         xfun_0.23             stringr_1.4.0        
+    ##  [49] globals_0.14.0        mime_0.11             miniUI_0.1.1.1       
+    ##  [52] lifecycle_1.0.0       irlba_2.3.3           goftest_1.2-2        
+    ##  [55] future_1.21.0         MASS_7.3-54           zoo_1.8-9            
+    ##  [58] scales_1.1.1          spatstat.core_2.2-0   promises_1.2.0.1     
+    ##  [61] spatstat.utils_2.2-0  parallel_4.1.0        RColorBrewer_1.1-2   
+    ##  [64] yaml_2.2.1            reticulate_1.20       pbapply_1.4-3        
+    ##  [67] gridExtra_2.3         rpart_4.1-15          stringi_1.6.1        
+    ##  [70] highr_0.9             rlang_0.4.11          pkgconfig_2.0.3      
+    ##  [73] matrixStats_0.59.0    evaluate_0.14         lattice_0.20-44      
+    ##  [76] ROCR_1.0-11           purrr_0.3.4           tensor_1.5           
+    ##  [79] htmlwidgets_1.5.3     labeling_0.4.2        cowplot_1.1.1        
+    ##  [82] tidyselect_1.1.1      parallelly_1.26.0     RcppAnnoy_0.0.18     
+    ##  [85] plyr_1.8.6            magrittr_2.0.1        R6_2.5.0             
+    ##  [88] generics_0.1.0        DBI_1.1.1             pillar_1.6.1         
+    ##  [91] withr_2.4.2           mgcv_1.8-35           fitdistrplus_1.1-5   
+    ##  [94] survival_3.2-11       abind_1.4-5           tibble_3.1.2         
+    ##  [97] future.apply_1.7.0    crayon_1.4.1          KernSmooth_2.23-20   
+    ## [100] utf8_1.2.1            spatstat.geom_2.2-0   plotly_4.9.4.1       
+    ## [103] rmarkdown_2.9         grid_4.1.0            data.table_1.14.0    
+    ## [106] digest_0.6.27         xtable_1.8-4          tidyr_1.1.3          
+    ## [109] httpuv_1.6.1          munsell_0.5.0         viridisLite_0.4.0
