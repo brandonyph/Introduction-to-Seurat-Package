@@ -9,6 +9,16 @@ output:
 
 Original Guide: https://satijalab.org/seurat/articles/pbmc3k_tutorial.html
 
+
+# Chapters  
+1. Package Import 
+2. Data Import  
+3. Data QC and Inspection  
+5. Data Normalization  
+6. Data Clustering (PCA/UMAP)  
+7. Markers Identification  
+8. Putting all together  
+
 ```{r}
 library(dplyr)
 library(Seurat)
@@ -129,7 +139,10 @@ We advise users to err on the higher side when choosing this parameter. For exam
 ```{r}
 pbmc <- FindNeighbors(pbmc, dims = 1:10)
 pbmc <- FindClusters(pbmc, resolution = 0.5)
+```
 
+
+```{r}
 # Look at cluster IDs of the first 5 cells
 head(Idents(pbmc), 5)
 ```
