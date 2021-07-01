@@ -1,6 +1,16 @@
 Original Guide:
 <https://satijalab.org/seurat/articles/pbmc3k_tutorial.html>
 
+# Chapters
+
+1.  Package Import
+2.  Data Import  
+3.  Data QC and Inspection  
+4.  Data Normalization  
+5.  Data Clustering (PCA/UMAP)  
+6.  Markers Identification  
+7.  Putting all together
+
 ``` r
 library(dplyr)
 ```
@@ -277,32 +287,32 @@ pbmc <- RunUMAP(pbmc, dims = 1:10)
     ## To use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'
     ## This message will be shown once per session
 
-    ## 09:54:12 UMAP embedding parameters a = 0.9922 b = 1.112
+    ## 22:14:15 UMAP embedding parameters a = 0.9922 b = 1.112
 
-    ## 09:54:12 Read 2700 rows and found 10 numeric columns
+    ## 22:14:15 Read 2700 rows and found 10 numeric columns
 
-    ## 09:54:12 Using Annoy for neighbor search, n_neighbors = 30
+    ## 22:14:15 Using Annoy for neighbor search, n_neighbors = 30
 
-    ## 09:54:12 Building Annoy index with metric = cosine, n_trees = 50
+    ## 22:14:15 Building Annoy index with metric = cosine, n_trees = 50
 
     ## 0%   10   20   30   40   50   60   70   80   90   100%
 
     ## [----|----|----|----|----|----|----|----|----|----|
 
     ## **************************************************|
-    ## 09:54:13 Writing NN index file to temp file C:\Users\harpa\AppData\Local\Temp\RtmpoJsBmG\file2fb877d171ce
-    ## 09:54:13 Searching Annoy index using 1 thread, search_k = 3000
-    ## 09:54:14 Annoy recall = 100%
-    ## 09:54:14 Commencing smooth kNN distance calibration using 1 thread
-    ## 09:54:15 Initializing from normalized Laplacian + noise
-    ## 09:54:15 Commencing optimization for 500 epochs, with 107868 positive edges
-    ## 09:54:23 Optimization finished
+    ## 22:14:15 Writing NN index file to temp file C:\Users\harpa\AppData\Local\Temp\Rtmpu8DFA1\file37983a831227
+    ## 22:14:15 Searching Annoy index using 1 thread, search_k = 3000
+    ## 22:14:16 Annoy recall = 100%
+    ## 22:14:17 Commencing smooth kNN distance calibration using 1 thread
+    ## 22:14:17 Initializing from normalized Laplacian + noise
+    ## 22:14:18 Commencing optimization for 500 epochs, with 107868 positive edges
+    ## 22:14:26 Optimization finished
 
 ``` r
 DimPlot(pbmc, reduction = "umap")
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 # find all markers of cluster 1
@@ -321,7 +331,7 @@ head(cluster1.markers, n = 5)
 VlnPlot(pbmc, features = c(row.names(cluster1.markers)[1], row.names(cluster1.markers)[2]))
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 # find all markers of cluster 2
@@ -340,7 +350,7 @@ head(cluster2.markers, n = 5)
 VlnPlot(pbmc, features = c(row.names(cluster2.markers)[1], row.names(cluster2.markers)[2]))
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
 # find all markers distinguishing cluster 5 from clusters 0 and 3
@@ -359,7 +369,7 @@ head(cluster5.markers, n = 5)
 VlnPlot(pbmc, features = c(row.names(cluster5.markers)[1], row.names(cluster5.markers)[2]))
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 ``` r
 # find markers for every cluster compared to all remaining cells, report only the positive ones
@@ -389,13 +399,13 @@ x <- pbmc.markers %>% group_by(cluster) %>% top_n(n = 1, wt = avg_log2FC)
 FeaturePlot(pbmc, features = x$gene[1:4])
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 ``` r
 FeaturePlot(pbmc, features = x$gene[5:8])
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
 
 ``` r
 p <- FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"), combine = FALSE)
@@ -414,7 +424,7 @@ CombinePlots(plots = p)
     ## Warning: CombinePlots is being deprecated. Plots should now be combined using
     ## the patchwork system.
 
-![](Seurat_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 ``` r
 top10 <- pbmc.markers %>% 
@@ -460,7 +470,7 @@ CombinePlots(plots = p2)
     ## Warning: CombinePlots is being deprecated. Plots should now be combined using
     ## the patchwork system.
 
-![](Seurat_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 # Assigning cell type identity to clusters
 
@@ -472,7 +482,7 @@ pbmc <- RenameIdents(pbmc, new.cluster.ids)
 DimPlot(pbmc, reduction = "pca", label = TRUE, pt.size = 0.5)
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 ``` r
 pbmc
@@ -487,7 +497,7 @@ pbmc
 DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5)
 ```
 
-![](Seurat_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](Seurat_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
 ``` r
 sessionInfo()
